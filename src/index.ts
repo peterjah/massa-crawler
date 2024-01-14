@@ -25,7 +25,10 @@ async function fetchConnectedNodes(
 
     return connectedNodes;
   } catch (error) {
-    console.error(`Error fetching connected nodes of ${url}:`, error?.toString());
+    console.error(
+      `Error fetching connected nodes of ${url}:`,
+      error?.toString()
+    );
   }
 }
 
@@ -41,44 +44,44 @@ async function crawlBlockchainNode(
 
   const connectedNodes = await fetchConnectedNodes(endpoint);
 
-  let totalNodes = 1; // Count the current node
+  if (!connectedNodes) {
+    return { routables: 0, unreachable: 1 };
+  }
   let totalUnreachable = 0;
 
   const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
 
-  if (connectedNodes) {
-    await Promise.all(
-      Object.values(connectedNodes).map(async (node) => {
-        const ip = node[0] as string;
-        const isIpv4 = ipv4Pattern.test(ip);
+  let totalNodes = 1; // Count the current node
+  await Promise.all(
+    Object.values(connectedNodes).map(async (node) => {
+      const ip = node[0] as string;
+      const isIpv4 = ipv4Pattern.test(ip);
 
-        const url = isIpv4 ? `http://${ip}:33035` : `http://[${ip}]:33035`;
-        const { routables, unreachable } = await crawlBlockchainNode(
-          url,
-          visitedNodes
-        );
-        totalNodes += routables;
-        totalUnreachable += unreachable;
-      })
-    );
-  } else {
-    totalUnreachable += 1;
-  }
- 
+      const url = isIpv4 ? `http://${ip}:33035` : `http://[${ip}]:33035`;
+      const { routables, unreachable } = await crawlBlockchainNode(
+        url,
+        visitedNodes
+      );
+      totalNodes += routables;
+      totalUnreachable += unreachable;
+    })
+  );
+
   return { routables: totalNodes, unreachable: totalUnreachable };
 }
 
 async function main() {
   const initialEndpoint = "https://mainnet.massa.net/api/v2";
 
-  const { routables: totalNodes, unreachable } = await crawlBlockchainNode(
+  const nodeSet = new Set<string>();
+  const { routables, unreachable } = await crawlBlockchainNode(
     initialEndpoint,
-    new Set<string>()
+    nodeSet
   );
 
-  console.log(`Total number of nodes in the network: ${totalNodes}`);
+  console.log(`Number of known nodes in the network: ${nodeSet.size}`);
+  console.log(`Number of routables: ${routables}`);
   console.log(`Number of unreachable: ${unreachable}`);
-
 }
 
 main();
