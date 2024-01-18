@@ -5,13 +5,13 @@ const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
 
 const nodes: Record<string, nodeInfos> = {};
 
-async function fetchConnectedNodes(
+async function getNodeInfos(
   url: string
 ): Promise<connectedNodes | undefined> {
   let connectedNodes;
   let version;
   try {
-    console.log(`Fetching connected nodes from ${url}...`);
+    console.log(`Fetching infos from ${url}...`);
     const response = await axios.post(
       url,
       {
@@ -31,18 +31,19 @@ async function fetchConnectedNodes(
     //   error?.toString()
     // );
   } finally {
-    nodes[url] = { version: version, routable: !!connectedNodes };
+    nodes[url] = { version, routable: !!version };
   }
 }
 
-async function crawlBlockchainNode(url: string): Promise<void> {
-  if (Object.keys(nodes).some((visitedUrl) => visitedUrl === url)) {
+async function visitNode(url: string): Promise<void> {
+  // do not revisit known node
+  if (nodes[url]) {
     return;
   }
 
   nodes[url] = { version: undefined, routable: false };
 
-  const connectedNodes = await fetchConnectedNodes(url);
+  const connectedNodes = await getNodeInfos(url);
 
   if (!connectedNodes) {
     return;
@@ -54,7 +55,7 @@ async function crawlBlockchainNode(url: string): Promise<void> {
       const isIpv4 = ipv4Pattern.test(ip);
 
       const url = isIpv4 ? `http://${ip}:33035` : `http://[${ip}]:33035`;
-      await crawlBlockchainNode(url);
+      await visitNode(url);
     })
   );
 }
@@ -62,7 +63,7 @@ async function crawlBlockchainNode(url: string): Promise<void> {
 async function main() {
   const initialEndpoint = "https://mainnet.massa.net/api/v2";
 
-  await crawlBlockchainNode(initialEndpoint);
+  await visitNode(initialEndpoint);
 
   console.log(
     `Number of known nodes in the network: ${Object.keys(nodes).length}`
