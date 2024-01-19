@@ -3,6 +3,7 @@ export type connectedNodes = {
   };
   
   export  type nodeInfos = {
+    url: string
     version: string | undefined;
     routable: boolean;
   }

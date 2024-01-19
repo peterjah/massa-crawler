@@ -20,8 +20,11 @@ async function getNodeInfos(url: string): Promise<connectedNodes | undefined> {
       { timeout: 1000 }
     );
 
-    nodes[url].version = response.data.result.version;
-    nodes[url].routable = true;
+    const nodeId = response.data.result.node_id;
+    if (nodes[nodeId]) {
+      nodes[nodeId].version = response.data.result.version;
+      nodes[nodeId].routable = true;
+    }
     return response.data.result.connected_nodes;
   } catch (error) {
     // console.error(
@@ -31,13 +34,15 @@ async function getNodeInfos(url: string): Promise<connectedNodes | undefined> {
   }
 }
 
-async function visitNode(url: string): Promise<void> {
+async function visitNode(url: string, nodeId?: string): Promise<void> {
   // do not revisit known node
-  if (nodes[url]) {
-    return;
+  if (nodeId) {
+    if (nodes[nodeId]) {
+      return;
+    } else {
+      nodes[nodeId] = { url, version: undefined, routable: false };
+    }
   }
-
-  nodes[url] = { version: undefined, routable: false };
 
   const connectedNodes = await getNodeInfos(url);
 
@@ -46,8 +51,8 @@ async function visitNode(url: string): Promise<void> {
   }
 
   await Promise.all(
-    Object.values(connectedNodes).map(async (node) => {
-      const ip = node[0] as string;
+    Object.entries(connectedNodes).map(async ([nodeId, connectionInfo]) => {
+      const ip = connectionInfo[0] as string;
       const isIpv4 = ipv4Pattern.test(ip);
       const ipv6MappedMatch = ip.match(ipv6MappedIpv4Regex);
 
@@ -56,13 +61,14 @@ async function visitNode(url: string): Promise<void> {
         : isIpv4
         ? `http://${ip}:33035`
         : `http://[${ip}]:33035`;
-      await visitNode(url);
+
+      await visitNode(url, nodeId);
     })
   );
 }
 
 async function main() {
-  const initialEndpoint = "http://144.24.196.246:33035";
+  const initialEndpoint = "https://mainnet.massa.net/api/v2";
 
   await visitNode(initialEndpoint);
 
