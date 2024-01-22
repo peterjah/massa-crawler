@@ -3,7 +3,8 @@ export type connectedNodes = {
   };
   
   export  type nodeInfos = {
-    url: string
-    version: string | undefined;
+    ips: string[];
+    version?: string;
     routable: boolean;
+    currentCycle?: number;
   }
