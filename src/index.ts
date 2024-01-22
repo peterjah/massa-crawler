@@ -36,7 +36,7 @@ async function visitNode(ip: string, nodeId: string): Promise<void> {
   const isIpv4 = ipv4Pattern.test(ip);
   const url = isIpv4 ? `http://${ip}:33035` : `http://[${ip}]:33035`;
 
-  let connectedNodes: connectedNodes | undefined;
+  let connectedNodes: connectedNodes;
   try {
     const response = await fetchNodeStatus(url);
     nodes[nodeId].version = response.data.result.version;
@@ -45,15 +45,12 @@ async function visitNode(ip: string, nodeId: string): Promise<void> {
     connectedNodes = response.data.result.connected_nodes;
   } catch (error) {
     //console.log(`Error fetching connected nodes of ${url}:`, error?.toString());
-  }
-
-  if (!connectedNodes) {
     return;
   }
 
   await Promise.all(
     Object.entries(connectedNodes).map(async ([nodeId, connectionInfo]) => {
-      const ip = connectionInfo[0] as string;
+      const ip = connectionInfo[0];
       await visitNode(ip, nodeId);
     })
   );
